@@ -1,134 +1,72 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.Entity;
-using System.Data.Entity.Infrastructure;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Web.Http;
-using System.Web.Http.Description;
-using ExpenseTrackerMVC.Models;
-using ExpenseTrackerWebApi.Models;
+﻿    using ExpenseTrackerMVC.Models;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Net.Http;
+    using System.Web;
+    using System.Web.Mvc;
 
-namespace ExpenseTrackerWebApi.Controllers
-{
-    public class ExpenseController : ApiController
+    namespace ExpenseTrackerMVC.Controllers
     {
-        private expenseDbEntities db = new expenseDbEntities();
-
-        // GET: api/Expense
-        /*public IQueryable<Expense> GetExpenses()
+        public class ExpenseController : Controller
         {
-            return db.Expenses;
-        }*/
-
-        public IHttpActionResult GetExpense()
-        {
-            var expense=db.Expenses.Join(db.Categories, e => e.categoryId, c => c.categoryId, (e,c) => new {e,c} )
-                .Select(ec => new ExpenseModelClass(){
-                expenseId=ec.e.expenseId,
-                    title = ec.e.title,
-                    description = ec.e.description,
-                    expense_amount = ec.e.expense_amount,
-                    categoryName = ec.c.categoryName,
-                    date= ec.e.date,
-            }).ToList();
-                
-            return Ok(expense);
-        }
-
-        // GET: api/Expense/5
-        [ResponseType(typeof(Expense))]
-        public IHttpActionResult GetExpense(int id)
-        {
-            Expense expense = db.Expenses.Find(id);
-            if (expense == null)
+            // GET: Expense
+            public ActionResult Index()
             {
-                return NotFound();
+                IEnumerable<mvcCategoryModel> catList;
+                HttpResponseMessage responses = GlobalVariables.WebApiClient.GetAsync("Category").Result;
+                catList = responses.Content.ReadAsAsync<IEnumerable<mvcCategoryModel>>().Result;
+                ViewBag.category = catList;
+
+                IEnumerable<ExpenseModelClass> expList;
+                HttpResponseMessage response = GlobalVariables.WebApiClient.GetAsync("Expense").Result;
+                expList = response.Content.ReadAsAsync<IEnumerable<ExpenseModelClass>>().Result;
+                return View(expList);
             }
 
-            return Ok(expense);
-        }
-
-        // PUT: api/Expense/5
-        [ResponseType(typeof(void))]
-        public IHttpActionResult PutExpense(int id, Expense expense)
-        {
-            if (!ModelState.IsValid)
+            public ActionResult AddOrEditExp(int id = 0)
             {
-                return BadRequest(ModelState);
-            }
-
-            if (id != expense.expenseId)
-            {
-                return BadRequest();
-            }
-
-            db.Entry(expense).State = EntityState.Modified;
-
-            try
-            {
-                db.SaveChanges();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ExpenseExists(id))
+                IEnumerable<mvcCategoryModel> catList;
+                HttpResponseMessage responses = GlobalVariables.WebApiClient.GetAsync("Category").Result;
+                catList = responses.Content.ReadAsAsync<IEnumerable<mvcCategoryModel>>().Result;
+                ViewBag.category = catList;
+                if (id == 0)
                 {
-                    return NotFound();
+                    return View(new mvcExpenseModel());
                 }
                 else
                 {
-                    throw;
+                    HttpResponseMessage response = GlobalVariables.WebApiClient.GetAsync("Expense/" + id.ToString()).Result;
+                    return View(response.Content.ReadAsAsync<mvcExpenseModel>().Result);
                 }
             }
 
-            return StatusCode(HttpStatusCode.NoContent);
-        }
-
-        // POST: api/Expense
-        [ResponseType(typeof(Expense))]
-        public IHttpActionResult PostExpense(Expense expense)
-        {
-            if (!ModelState.IsValid)
+            [HttpPost]
+            public ActionResult AddOrEditExp(mvcExpenseModel exp)
             {
-                return BadRequest(ModelState);
+                IEnumerable<mvcCategoryModel> catList;
+                HttpResponseMessage responses = GlobalVariables.WebApiClient.GetAsync("Category").Result;
+                catList = responses.Content.ReadAsAsync<IEnumerable<mvcCategoryModel>>().Result;
+                ViewBag.category = catList;
+                if (exp.expenseId == 0)
+                {
+                    HttpResponseMessage response = GlobalVariables.WebApiClient.PostAsJsonAsync("Expense", exp).Result;
+                    TempData["SuccessMessage"] = "Expense added successfully";
+
+                }
+                else
+                {
+                    HttpResponseMessage response = GlobalVariables.WebApiClient.PutAsJsonAsync("Expense/" + exp.expenseId,exp).Result;
+                    TempData["SuccessMessage"] = "Expense updated successfully";
+                }
+                return RedirectToAction("Index");
             }
 
-            db.Expenses.Add(expense);
-            db.SaveChanges();
-
-            return CreatedAtRoute("DefaultApi", new { id = expense.expenseId }, expense);
-        }
-
-        // DELETE: api/Expense/5
-        [ResponseType(typeof(Expense))]
-        public IHttpActionResult DeleteExpense(int id)
-        {
-            Expense expense = db.Expenses.Find(id);
-            if (expense == null)
+            public ActionResult DeleteExp(int id)
             {
-                return NotFound();
+                HttpResponseMessage response = GlobalVariables.WebApiClient.DeleteAsync("Expense/" + id.ToString()).Result;
+                TempData["SuccessMessage"] = "Expense deleted successfully";
+                return RedirectToAction("Index");
             }
-
-            db.Expenses.Remove(expense);
-            db.SaveChanges();
-
-            return Ok(expense);
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                db.Dispose();
-            }
-            base.Dispose(disposing);
-        }
-
-        private bool ExpenseExists(int id)
-        {
-            return db.Expenses.Count(e => e.expenseId == id) > 0;
         }
     }
-}

@@ -1,118 +1,60 @@
-﻿using System;
+﻿using ExpenseTrackerMVC.Models;
+using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Data.Entity;
-using System.Data.Entity.Infrastructure;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
-using System.Web.Http;
-using System.Web.Http.Description;
-using ExpenseTrackerWebApi.Models;
+using System.Web;
+using System.Web.Mvc;
 
-namespace ExpenseTrackerWebApi.Controllers
+namespace ExpenseTrackerMVC.Controllers
 {
-    public class CategoryController : ApiController
+    public class CategoryController : Controller
     {
-        private expenseDbEntities db = new expenseDbEntities();
-
-        // GET: api/Category
-        public IQueryable<Category> GetCategories()
+        // GET: Category
+        public ActionResult Index()
         {
-            return db.Categories;
+            IEnumerable<mvcCategoryModel> catList;
+            HttpResponseMessage response = GlobalVariables.WebApiClient.GetAsync("Category").Result;
+            catList = response.Content.ReadAsAsync<IEnumerable<mvcCategoryModel>>().Result;
+            return View(catList);
         }
 
-        // GET: api/Category/5
-        [ResponseType(typeof(Category))]
-        public IHttpActionResult GetCategory(int id)
+        public ActionResult AddOrEdit(int id = 0)
         {
-            Category category = db.Categories.Find(id);
-            if (category == null)
+            if (id == 0)
             {
-                return NotFound();
+                return View(new mvcCategoryModel());
             }
-
-            return Ok(category);
+            else
+            {
+                HttpResponseMessage response = GlobalVariables.WebApiClient.GetAsync("Category/"+id.ToString()).Result;
+                return View(response.Content.ReadAsAsync<mvcCategoryModel>().Result);
+            }
         }
 
-        // PUT: api/Category/5
-        [ResponseType(typeof(void))]
-        public IHttpActionResult PutCategory(int id, Category category)
+        [HttpPost]
+        public ActionResult AddOrEdit(mvcCategoryModel cat)
         {
-            if (!ModelState.IsValid)
+            if (cat.categoryId == 0)
             {
-                return BadRequest(ModelState);
+                HttpResponseMessage response = GlobalVariables.WebApiClient.PostAsJsonAsync("Category", cat).Result;
+                TempData["SuccessMessage"] = "Category added successfully";
+                
             }
-
-            if (id != category.categoryId)
+            else
             {
-                return BadRequest();
+                HttpResponseMessage response = GlobalVariables.WebApiClient.PutAsJsonAsync("Category/"+cat.categoryId,cat).Result;
+                TempData["SuccessMessage"] = "Category updated successfully";
             }
-
-            db.Entry(category).State = EntityState.Modified;
-
-            try
-            {
-                db.SaveChanges();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!CategoryExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return StatusCode(HttpStatusCode.NoContent);
+            return RedirectToAction("Index");
         }
 
-        // POST: api/Category
-        [ResponseType(typeof(Category))]
-        public IHttpActionResult PostCategory(Category category)
+        public ActionResult Delete(int id)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            db.Categories.Add(category);
-            db.SaveChanges();
-
-            return CreatedAtRoute("DefaultApi", new { id = category.categoryId }, category);
+            HttpResponseMessage response = GlobalVariables.WebApiClient.DeleteAsync("Category/" + id.ToString()).Result;
+            TempData["SuccessMessage"] = "Category deleted successfully";
+            return RedirectToAction("Index");
         }
 
-        // DELETE: api/Category/5
-        [ResponseType(typeof(Category))]
-        public IHttpActionResult DeleteCategory(int id)
-        {
-            Category category = db.Categories.Find(id);
-            if (category == null)
-            {
-                return NotFound();
-            }
-
-            db.Categories.Remove(category);
-            db.SaveChanges();
-
-            return Ok(category);
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                db.Dispose();
-            }
-            base.Dispose(disposing);
-        }
-
-        private bool CategoryExists(int id)
-        {
-            return db.Categories.Count(e => e.categoryId == id) > 0;
-        }
     }
 }
