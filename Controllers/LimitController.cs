@@ -1,118 +1,59 @@
-﻿using System;
+﻿using ExpenseTrackerMVC.Models;
+using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Data.Entity;
-using System.Data.Entity.Infrastructure;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
-using System.Web.Http;
-using System.Web.Http.Description;
-using ExpenseTrackerWebApi.Models;
+using System.Web;
+using System.Web.Mvc;
 
-namespace ExpenseTrackerWebApi.Controllers
+namespace ExpenseTrackerMVC.Controllers
 {
-    public class LimitController : ApiController
+    public class LimitController : Controller
     {
-        private expenseDbEntities db = new expenseDbEntities();
-
-        // GET: api/Limit
-        public IQueryable<Limit> GetLimits()
+        // GET: Limit
+        public ActionResult Index()
         {
-            return db.Limits;
+            IEnumerable<mvcLimitModel> limList;
+            HttpResponseMessage response = GlobalVariables.WebApiClient.GetAsync("Limit").Result;
+            limList = response.Content.ReadAsAsync<IEnumerable<mvcLimitModel>>().Result;
+            return View(limList);
         }
 
-        // GET: api/Limit/5
-        [ResponseType(typeof(Limit))]
-        public IHttpActionResult GetLimit(int id)
+        public ActionResult AddOrEditlim(int id = 0)
         {
-            Limit limit = db.Limits.Find(id);
-            if (limit == null)
+            if (id == 0)
             {
-                return NotFound();
+                return View(new mvcLimitModel());
             }
-
-            return Ok(limit);
+            else
+            {
+                HttpResponseMessage response = GlobalVariables.WebApiClient.GetAsync("Limit/" + id.ToString()).Result;
+                return View(response.Content.ReadAsAsync<mvcLimitModel>().Result);
+            }
         }
 
-        // PUT: api/Limit/5
-        [ResponseType(typeof(void))]
-        public IHttpActionResult PutLimit(int id, Limit limit)
+        [HttpPost]
+        public ActionResult AddOrEditlim(mvcLimitModel lim)
         {
-            if (!ModelState.IsValid)
+            if (lim.limitId == 0)
             {
-                return BadRequest(ModelState);
-            }
+                HttpResponseMessage response = GlobalVariables.WebApiClient.PostAsJsonAsync("Limit", lim).Result;
+                TempData["SuccessMessage"] = "Expense limit added successfully";
 
-            if (id != limit.limitId)
+            }
+            else
             {
-                return BadRequest();
+                HttpResponseMessage response = GlobalVariables.WebApiClient.PutAsJsonAsync("Limit/" + lim.limitId, lim).Result;
+                TempData["SuccessMessage"] = "Expense limit updated successfully";
             }
-
-            db.Entry(limit).State = EntityState.Modified;
-
-            try
-            {
-                db.SaveChanges();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!LimitExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return StatusCode(HttpStatusCode.NoContent);
+            return RedirectToAction("Index");
         }
 
-        // POST: api/Limit
-        [ResponseType(typeof(Limit))]
-        public IHttpActionResult PostLimit(Limit limit)
+        public ActionResult DeleteLim(int id)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            db.Limits.Add(limit);
-            db.SaveChanges();
-
-            return CreatedAtRoute("DefaultApi", new { id = limit.limitId }, limit);
-        }
-
-        // DELETE: api/Limit/5
-        [ResponseType(typeof(Limit))]
-        public IHttpActionResult DeleteLimit(int id)
-        {
-            Limit limit = db.Limits.Find(id);
-            if (limit == null)
-            {
-                return NotFound();
-            }
-
-            db.Limits.Remove(limit);
-            db.SaveChanges();
-
-            return Ok(limit);
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                db.Dispose();
-            }
-            base.Dispose(disposing);
-        }
-
-        private bool LimitExists(int id)
-        {
-            return db.Limits.Count(e => e.limitId == id) > 0;
+            HttpResponseMessage response = GlobalVariables.WebApiClient.DeleteAsync("Limit/" + id.ToString()).Result;
+            TempData["SuccessMessage"] = "Expense limit deleted successfully";
+            return RedirectToAction("Index");
         }
     }
 }
